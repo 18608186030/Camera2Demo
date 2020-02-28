@@ -80,7 +80,6 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-        mBtnPhotograph.setOnClickListener { onclickView(it) }
         //1.初始化动态授权,这是基本操作
         rxPermissions
             .request(
@@ -100,35 +99,6 @@ class MainActivity : AppCompatActivity() {
                     finish()
                 }
             }
-    }
-
-
-    private fun onclickView(v: View?) {
-        when (v?.id) {
-            R.id.mBtnPhotograph -> {
-                try {
-                    //停止重复   取消任何正在进行的重复捕获集 在这里就是停止画面预览
-                    mCameraCaptureSession.stopRepeating()
-                    /*   终止获取 尽可能快地放弃当前挂起和正在进行的所有捕获。
-                     *   mCameraCaptureSession.abortCaptures();
-                     *   这里有一个坑,其实这个并不能随便调用(我是看到别的demo这么使用,但是其实是错误的,所以就在这里备注这个坑).
-                     *   最好只在Activity里的onDestroy调用它,终止获取是耗时操作,需要一定时间重新打开会话通道.
-                     *   在这个demo里我并没有恢复预览,如果你调用了这个方法关闭了会话又拍照后恢复图像预览,会话就会频繁的开关,
-                     *   导致拍照图片在处理耗时缓存时你又关闭了会话.导致照片缓存不完整并且失败.
-                     *   所以切记不要随便使用这个方法,会话开启后并不需要关闭刷新.后续其他拍照/预览/录制视频直接操作这个会话即可
-                     */
-
-                    //11.实现拍照
-                    takePicture()
-                } catch (e: CameraAccessException) {
-                    e.printStackTrace()
-                }
-            }
-
-            else -> {
-
-            }
-        }
     }
 
     /**
@@ -156,6 +126,7 @@ class MainActivity : AppCompatActivity() {
                 BitmapUtils.toBitmap(byteArray, { bitmap ->
                     runOnUiThread {
                         ivShow.setImageBitmap(bitmap)
+                        timeRunning = false
                     }
                 }, { msg ->
                     runOnUiThread {
@@ -387,28 +358,28 @@ class MainActivity : AppCompatActivity() {
         if (!faces.isNullOrEmpty()) {
             if (!timeRunning) {
                 Observable.interval(1, TimeUnit.SECONDS, AndroidSchedulers.mainThread())
-                    .take(3)
+                    .take(4)
                     .compose(bindLifecycle(this))
                     .subscribeOn(AndroidSchedulers.mainThread())
                     .subscribe(object : DisposableObserver<Long>() {
                         override fun onNext(t: Long) {
-                            //tvTimer.text = (3 - t).toInt().toString()
-                            tvTimer.text = t.toInt().toString()
-                            tvHint.setTextColor(Color.BLUE)
-                            tvHint.text = "检测到 ${faces.size} 张人脸"
                             timeRunning = true
+                            tvTimer.text = (3 - t).toInt().toString()
+                            tvHint.setTextColor(Color.BLUE)
+                            tvHint.text = "检测到人脸,请保持姿势"
                         }
 
                         override fun onError(e: Throwable) {
+                            timeRunning = false
                             tvTimer.text = ""
                             tvHint.text = ""
-                            timeRunning = false
                         }
 
                         override fun onComplete() {
                             tvTimer.text = ""
                             tvHint.text = ""
-                            timeRunning = false
+                            //11.实现拍照
+                            takePicture()
                         }
                     })
             } else {
@@ -474,6 +445,16 @@ class MainActivity : AppCompatActivity() {
      * 11.实现拍照
      */
     private fun takePicture() {
+        //停止重复   取消任何正在进行的重复捕获集 在这里就是停止画面预览
+        mCameraCaptureSession.stopRepeating()
+        /*   终止获取 尽可能快地放弃当前挂起和正在进行的所有捕获。
+         *   mCameraCaptureSession.abortCaptures();
+         *   这里有一个坑,其实这个并不能随便调用(我是看到别的demo这么使用,但是其实是错误的,所以就在这里备注这个坑).
+         *   最好只在Activity里的onDestroy调用它,终止获取是耗时操作,需要一定时间重新打开会话通道.
+         *   在这个demo里我并没有恢复预览,如果你调用了这个方法关闭了会话又拍照后恢复图像预览,会话就会频繁的开关,
+         *   导致拍照图片在处理耗时缓存时你又关闭了会话.导致照片缓存不完整并且失败.
+         *   所以切记不要随便使用这个方法,会话开启后并不需要关闭刷新.后续其他拍照/预览/录制视频直接操作这个会话即可
+         */
         try {
             var captureRequestBuilder: CaptureRequest.Builder =
                 mCameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE)
