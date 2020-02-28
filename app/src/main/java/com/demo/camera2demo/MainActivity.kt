@@ -367,6 +367,10 @@ class MainActivity : AppCompatActivity() {
                             tvTimer.text = (3 - t).toInt().toString()
                             tvHint.setTextColor(Color.BLUE)
                             tvHint.text = "检测到人脸,请保持姿势"
+                            if (t.toInt() == 3) {
+                                //11.实现拍照
+                                takePicture()
+                            }
                         }
 
                         override fun onError(e: Throwable) {
@@ -378,12 +382,8 @@ class MainActivity : AppCompatActivity() {
                         override fun onComplete() {
                             tvTimer.text = ""
                             tvHint.text = ""
-                            //11.实现拍照
-                            takePicture()
                         }
                     })
-            } else {
-                return
             }
         } else {
             if (!timeRunning) {
